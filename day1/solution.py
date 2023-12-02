@@ -1,12 +1,3 @@
-import functools
-
-
-def process1(line):
-    first_digit = next(c for c in line if c.isdigit())
-    last_digit = next(c for c in reversed(line) if c.isdigit())
-    return int(f"{first_digit}{last_digit}")
-
-
 REPLACEMENTS = {
     "one": "1",
     "two": "2",
@@ -20,24 +11,23 @@ REPLACEMENTS = {
 }
 
 
-def start_digit(line):
+def has_digit(line: str, allow_words=False):
     if line == "":
-        raise ValueError("No digits in line")
+        return None
     elif line[0].isdigit():
         return line[0]
-    else:
+    elif line[-1].isdigit():
+        return line[-1]
+    elif allow_words:
         for word, digit in REPLACEMENTS.items():
-            if line.startswith(word):
+            if line.find(word) != -1:
                 return digit
-        return None
+    return None
 
 
-def forward(line):
-    while line != "":
-        if d := start_digit(line):
-            return d
-        else:
-            line = line[1:]
+def forward_fragments(line):
+    for i in range(len(line)):
+        yield line[: i + 1]
 
 
 def reverse_fragments(line):
@@ -46,32 +36,28 @@ def reverse_fragments(line):
         yield r[: i + 1][::-1]
 
 
-def backward(line):
-    for fragment in reverse_fragments(line):
-        if d := start_digit(fragment):
+def search(fragments, allow_words):
+    for fragment in fragments:
+        if d := has_digit(fragment, allow_words):
             return d
     raise ValueError("No digits in line")
 
 
-def process2(line: str):
-    first_digit = forward(line)
-    last_digit = backward(line)
+def process(line: str, allow_words):
+    first_digit = search(forward_fragments(line), allow_words)
+    last_digit = search(reverse_fragments(line), allow_words)
     return int(f"{first_digit}{last_digit}")
 
 
-def part1(input):
-    return sum([process1(line) for line in input.splitlines()])
-
-
-def part2(input):
-    return sum([process2(line) for line in input.splitlines()])
+def solve(input, allow_words):
+    return sum([process(line, allow_words) for line in input.splitlines()])
 
 
 def main():
     with open("input.txt", "r") as f:
         input = f.read()
-    print(part1(input))
-    print(part2(input))
+    print(solve(input, allow_words=False))
+    print(solve(input, allow_words=True))
 
 
 if __name__ == "__main__":
