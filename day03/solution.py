@@ -73,8 +73,8 @@ def gear_ratio(symbol: Symbol, numbers: list[Number]):
 
 def part1(numbers: list[Number], symbols: list[Symbol]):
     symbol_locs = set(flatten(s.points for s in symbols))
-    part_numbers = (n for n in numbers if is_partnumber(n, symbol_locs))
-    return sum(n.value for n in part_numbers)
+    part_numbers = [n for n in numbers if is_partnumber(n, symbol_locs)]
+    return part_numbers, sum(n.value for n in part_numbers)
 
 
 def part2(numbers: list[Number], symbols: list[Symbol]):
@@ -86,8 +86,9 @@ def main():
         lines = f.readlines()
     symbols = list(parse_symbols(lines))
     numbers = list(parse_numbers(lines))
-    print(part1(numbers, symbols))
-    print(part2(numbers, symbols))
+    part_numbers, ans1 = part1(numbers, symbols)
+    print(ans1)
+    print(part2(part_numbers, symbols))
 
 
 if __name__ == "__main__":
