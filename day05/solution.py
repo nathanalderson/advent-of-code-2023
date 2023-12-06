@@ -42,20 +42,58 @@ humidity-to-location map:
 """
 
 
+def flatten(iterable):
+    return list(itertools.chain.from_iterable(iterable))
+
+
+def overlap(r1: range, r2: range) -> range:
+    return range(max(r1.start, r2.start), min(r1.stop, r2.stop))
+
+
+def shift_range(r: range, offset: int) -> range:
+    return range(r.start + offset, r.stop + offset)
+
+
+def diff_range(r1: range, r2: range) -> list(range):
+    return [
+        r
+        for r in [
+            range(r1.start, r2.start),
+            range(r2.stop, r1.stop),
+        ]
+        if len(r) > 0
+    ]
+
+
 @dataclass(frozen=True)
 class Map:
     name: str
     mappings: tuple((range, range))  # tuple(dest_range, source_range)
 
     def parse(name, lines) -> Map:
-        ranges = tuple(Map.parse_range(line) for line in lines)
-        return Map(name, ranges)
+        mappings = tuple(Map.parse_range(line) for line in lines)
+        return Map(name, mappings)
 
     def parse_range(line) -> (range, range):
         source_start, dest_start, length = [int(x) for x in line.split()]
         return range(source_start, source_start + length), range(
             dest_start, dest_start + length
         )
+
+    def map_range(self, source_range: range) -> list(range):
+        remaining_ranges = [source_range]
+        while remaining_ranges:
+            remaining_range = remaining_ranges.pop()
+            for d_range, s_range in self.mappings:
+                overlap_range = overlap(remaining_range, s_range)
+                if len(overlap_range) > 0:
+                    shifted = shift_range(overlap_range, d_range.start - s_range.start)
+                    yield shifted
+                    diff_ranges = diff_range(remaining_range, overlap_range)
+                    remaining_ranges.extend(diff_ranges)
+                    break
+            else:
+                yield remaining_range
 
     def __getitem__(self, key: int):
         for dest_range, source_range in self.mappings:
@@ -82,6 +120,12 @@ class Data:
             location = map[location]
         return location
 
+    def range_locations(self, seed_range: range) -> list(range):
+        ranges = [seed_range]
+        for map in self.maps:
+            ranges = flatten(map.map_range(r) for r in ranges)
+        return ranges
+
     def nearest_seed_location(self) -> int:
         return min(self.seed_location(seed) for seed in self.seeds)
 
@@ -91,15 +135,8 @@ class Data:
             for start, count in itertools.batched(self.seeds, 2)
         ]
         print("total seeds:", sum(len(seed_range) for seed_range in seed_ranges))
-        # return min(self.seed_location(seed) for seed in itertools.chain(*seed_ranges))
-        closest = math.inf
-        for i, seed in enumerate(itertools.chain(*seed_ranges)):
-            if i % 100000 == 0:
-                print(i)
-            location = self.seed_location(seed)
-            if location < closest:
-                closest = location
-        return closest
+        locations = [self.range_locations(seed_range) for seed_range in seed_ranges]
+        return min(r.start for r in itertools.chain(*locations))
 
 
 def main():
@@ -107,8 +144,8 @@ def main():
     with open("input") as f:
         input = f.read()
     data = Data.parse(input)
-    print(data.nearest_seed_location())
-    print(data.nearest_seed_location_range_version())
+    print("part 1:", data.nearest_seed_location())
+    print("part 2:", data.nearest_seed_location_range_version())
 
 
 if __name__ == "__main__":
