@@ -1,7 +1,9 @@
+from collections import defaultdict
 from pprint import pprint
 from itertools import *
 from dataclasses import dataclass
 import re
+import math
 
 TEST_INPUT1 = """\
 RL
@@ -45,6 +47,9 @@ class Node:
     def __repr__(self) -> str:
         return f"<{self.name}>({self.left}, {self.right})"
 
+    def __eq__(self, other) -> bool:
+        return type(self) == type(other) and self.name == other.name
+
 
 class Puzzle:
     def __init__(self, lines) -> None:
@@ -70,7 +75,7 @@ class Puzzle:
             path.append(loc)
         return path
 
-    def multitraverse(self):
+    def multitraverse_naive(self):
         locs = [node for name, node in self.nodes.items() if name.endswith("A")]
         directions = cycle(self.directions)
         steps = 0
@@ -79,6 +84,24 @@ class Puzzle:
             steps += 1
             locs = [self.go(n, direction) for n in locs]
         return steps
+
+    def steps_to_first_z(self, starting_loc):
+        loc = starting_loc
+        directions = cycle(self.directions)
+        steps = 0
+        while not loc.name.endswith("Z"):
+            direction = next(directions)
+            loc = self.go(loc, direction)
+            steps += 1
+        return steps
+
+    def multitraverse(self):
+        steps = [
+            self.steps_to_first_z(node)
+            for name, node in self.nodes.items()
+            if name.endswith("A")
+        ]
+        return math.lcm(*steps)
 
 
 def main():
@@ -89,8 +112,7 @@ def main():
         lines = f.readlines()
     puzzle = Puzzle(lines)
     path = puzzle.traverse()
-    print(path)
-    print(len(path))
+    print("part 1:", len(path))
     print(puzzle.multitraverse())
 
 
