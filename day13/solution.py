@@ -50,7 +50,8 @@ class Board:
                 if char == "#":
                     yield Point(x, y)
 
-    def is_reflected(self, axis: float, direction: str) -> bool:
+    def num_reflection_errors(self, axis: float, direction: str) -> int:
+        count = 0
         for point in self.locs:
             match direction:
                 case "x":
@@ -60,22 +61,22 @@ class Board:
             if (
                 0 <= reflected.x < self.width and 0 <= reflected.y < self.height
             ) and reflected not in self.locs:
-                return False
-        return True
+                count += 1
+        return count
 
-    def find_reflection_point(self) -> (float, str):
+    def find_reflection_point(self, num_errors) -> (float, str):
         for x in range(self.width - 1):
             axis = x + 0.5
-            if self.is_reflected(axis, "x"):
+            if self.num_reflection_errors(axis, "x") == num_errors:
                 return axis, "x"
         for y in range(self.height - 1):
             axis = y + 0.5
-            if self.is_reflected(axis, "y"):
+            if self.num_reflection_errors(axis, "y") == num_errors:
                 return axis, "y"
         raise ValueError("No reflection point found")
 
-    def get_reflection_score(self) -> int:
-        axis, direction = self.find_reflection_point()
+    def get_reflection_score(self, num_errors) -> int:
+        axis, direction = self.find_reflection_point(num_errors)
         cols_before = math.ceil(axis)
         if direction == "x":
             return cols_before
@@ -90,8 +91,10 @@ def main():
     data = open("input").read()
     board_strings = data.split("\n\n")
     boards = [Board(board_str) for board_str in board_strings]
-    ans1 = sum(board.get_reflection_score() for board in boards)
+    ans1 = sum(board.get_reflection_score(num_errors=0) for board in boards)
     print(ans1)
+    ans2 = sum(board.get_reflection_score(num_errors=1) for board in boards)
+    print(ans2)
 
 
 if __name__ == "__main__":
