@@ -1,4 +1,5 @@
 from enum import Enum
+import functools
 import itertools
 from pprint import pprint
 from typing import Iterable
@@ -66,28 +67,8 @@ class Record:
     def check(states: list[State], checksum: Checksum) -> bool:
         return checksum == checksum(states)
 
-    def solve(self, states: tuple[State], checksum: tuple[int], acc: int) -> int:
-        if len(states) == 0 and len(checksum) == 0:
-            return acc + 1
-        elif len(states) == 0 or len(checksum) == 0:
-            return acc
-        elif len(states) < checksum[0]:
-            return acc
-        elif any(s == State.WORKING for s in states[: checksum[0]]):
-            return acc
-        else:
-            head, *rest = states
-            if head == State.WORKING:
-                return self.solve(rest, checksum, acc)
-            if head == State.UNKNOWN:
-                return self.solve((State.WORKING, *rest), checksum, acc) + self.solve(
-                    (State.DAMAGED, *rest), checksum, acc
-                )
-            else:  # state == State.DAMAGED
-                return self.solve(states[: checksum[0]], checksum[1:], acc)
-
     def num_solutions(self) -> int:
-        return self.solve(tuple(self.states), tuple(self.checksum), 0)
+        return solve(tuple(self.states), tuple(self.checksum))
 
 
 def checksum(states: list[State]) -> list[int]:
@@ -97,17 +78,61 @@ def checksum(states: list[State]) -> list[int]:
     return [len(g) for g in damaged_groups]
 
 
+def counts(states: list[State]) -> (int, int, int):
+    working = 0
+    damaged = 0
+    unknown = 0
+    for s in states:
+        if s == State.WORKING:
+            working += 1
+        elif s == State.DAMAGED:
+            damaged += 1
+        else:
+            unknown += 1
+    return (working, damaged, unknown)
+
+
+@functools.cache
+def solve(states: tuple[State], checksum: tuple[int]) -> int:
+    _num_working, num_damaged, num_unknown = counts(states)
+    if num_damaged == 0 and len(checksum) == 0:
+        return 1
+    elif len(states) == 0 or len(checksum) == 0:
+        return 0
+    elif num_damaged + num_unknown < sum(checksum):
+        return 0
+    else:
+        head, *rest = states
+        if head == State.WORKING:
+            return solve(tuple(rest), checksum)
+        elif head == State.UNKNOWN:
+            return solve((State.WORKING, *rest), checksum) + solve(
+                (State.DAMAGED, *rest), checksum
+            )
+        else:  # state == State.DAMAGED
+            c = checksum[0]
+            if len(states) < c:
+                return 0
+            elif any(s == State.WORKING for s in states[:c]):
+                return 0
+            elif c == len(states) or states[c] != State.DAMAGED:
+                return solve(states[c + 1 :], checksum[1:])
+            else:
+                return 0
+
+
 def main():
-    lines = TEST_INPUT.splitlines()
+    # lines = TEST_INPUT.splitlines()
     lines = open("input").readlines()
     records1 = [Record(line) for line in lines]
-    ans1 = sum(r.num_solutions() for r in records1)
+    num_solutions = [r.num_solutions() for r in records1]
+    # pprint(num_solutions)
+    ans1 = sum(num_solutions)
     print(ans1)
-    # records2 = [Record(line, unfold=True) for line in lines]
-    # r = records2[1]
-    # print(r.num_solutions())
-    # ans2 = sum(r.num_solutions() for r in records2)
-    # print(ans2)
+    records2 = [Record(line, unfold=True) for line in lines]
+    ans2 = sum(r.num_solutions() for r in records2)
+    print(ans2)
+    # 690697471078056 -- too high
 
 
 if __name__ == "__main__":
