@@ -68,6 +68,7 @@ class Record:
         return checksum == checksum(states)
 
     def num_solutions(self) -> int:
+        solve.cache_clear()
         return solve(tuple(self.states), tuple(self.checksum))
 
 
