@@ -51,7 +51,17 @@ class Record:
         self.states = self.parse_state(state_part)
         self.checksum = self.parse_checksum(checksum_part)
         if unfold:
-            self.states = [*self.states, State.UNKNOWN] * 5
+            self.states = [
+                *self.states,
+                State.UNKNOWN,
+                *self.states,
+                State.UNKNOWN,
+                *self.states,
+                State.UNKNOWN,
+                *self.states,
+                State.UNKNOWN,
+                *self.states,
+            ]
             self.checksum = self.checksum * 5
 
     def parse_state(self, part):
@@ -107,8 +117,8 @@ def solve(states: tuple[State], checksum: tuple[int]) -> int:
         if head == State.WORKING:
             return solve(tuple(rest), checksum)
         elif head == State.UNKNOWN:
-            return solve((State.WORKING, *rest), checksum) + solve(
-                (State.DAMAGED, *rest), checksum
+            return solve((State.DAMAGED, *rest), checksum) + solve(
+                (State.WORKING, *rest), checksum
             )
         else:  # state == State.DAMAGED
             c = checksum[0]
@@ -131,7 +141,9 @@ def main():
     ans1 = sum(num_solutions)
     print(ans1)
     records2 = [Record(line, unfold=True) for line in lines]
-    ans2 = sum(r.num_solutions() for r in records2)
+    num_solutions2 = [r.num_solutions() for r in records2]
+    # pprint(num_solutions2)
+    ans2 = sum(num_solutions2)
     print(ans2)
     # 690697471078056 -- too high
 
