@@ -62,10 +62,19 @@ class Box:
             self.slots.pop(idx)
 
     def find_lens(self, label: str) -> (int, Lens):
-        if idx := next((lens for lens in self.slots if lens.label == label), None):
-            return idx, self.slots[idx]
+        if result_tuple := next(
+            ((i, lens) for i, lens in enumerate(self.slots) if lens.label == label),
+            None,
+        ):
+            return result_tuple
         else:
             return None, None
+
+    def focusing_power(self) -> int:
+        return sum(
+            (self.num + 1) * (i + 1) * lens.focal_length
+            for i, lens in enumerate(self.slots)
+        )
 
     def __str__(self) -> str:
         return f"Box {self.num}: {self.slots}"
@@ -87,6 +96,9 @@ class Boxes:
         else:
             raise ValueError(f"Unknown operation {op.op}")
 
+    def focusing_power(self) -> int:
+        return sum(box.focusing_power() for box in self.boxes)
+
     def __repr__(self) -> str:
         return "\n".join(str(box) for box in self.boxes if box.slots)
 
@@ -94,19 +106,18 @@ class Boxes:
 def run_initialization(ops: list[Operation]) -> Boxes:
     boxes = Boxes()
     for op in ops:
-        if op.op == "-":
-            boxes.boxes[hash(op.label)].slots.append(Lens(op.label, op.focal_length))
+        boxes.do_operation(op)
     return boxes
 
 
 def main():
-    # data = open("input").read().strip()
-    data = TEST_DATA
+    data = open("input").read().strip()
+    # data = TEST_DATA
     ans1 = sum(hash(s) for s in data.split(","))
     print(ans1)
     ops = (parse_cmd(cmd) for cmd in data.split(","))
     boxes = run_initialization(ops)
-    pprint(boxes)
+    print(boxes.focusing_power())
 
 
 if __name__ == "__main__":
