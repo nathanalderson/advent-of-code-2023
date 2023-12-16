@@ -107,6 +107,20 @@ class Board:
                 if self.in_bounds(p := point.go(dir)):
                     to_explore.append((p, dir))
 
+    def num_energized(self, point: Point, dir: str) -> int:
+        self.cache.clear()
+        count = len(set(self.follow(point, dir)))
+        return count
+
+    def part2(self) -> int:
+        starting_pointdirs = [
+            *[(Point(0, y), "e") for y in range(self.height)],
+            *[(Point(x, 0), "s") for x in range(self.width)],
+            *[(Point(x, self.height - 1), "n") for x in range(self.width)],
+            *[(Point(self.width - 1, y), "w") for y in range(self.height)],
+        ]
+        return max(self.num_energized(point, dir) for point, dir in starting_pointdirs)
+
     def __str__(self) -> str:
         return "\n".join(
             "".join(str(self.tiles.get(Point(x, y), ".")) for x in range(self.width))
@@ -118,9 +132,9 @@ def main():
     # input = TEST_INPUT.strip()
     input = open("input").read()
     board = Board(input.strip())
-    visited = board.follow(Point(0, 0), "e")
-    visited = set(visited)
-    pprint(len(visited))
+    ans1 = board.num_energized(Point(0, 0), "e")
+    pprint(ans1)
+    pprint(board.part2())
 
 
 if __name__ == "__main__":
