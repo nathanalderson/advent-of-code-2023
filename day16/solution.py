@@ -86,19 +86,19 @@ class Board:
                     self.tiles[Point(x, y)] = Tile(c)
         self.width = x + 1
         self.height = y + 1
-        self.cache: set[(Point, str)] = set()
 
     def in_bounds(self, point: Point) -> bool:
         return 0 <= point.x < self.width and 0 <= point.y < self.height
 
     def follow(self, point: Point, dir: str) -> Iterable[Point]:
+        explored: set((Point, str)) = set()
         to_explore = [(point, dir)]
         while to_explore:
             point, dir = to_explore.pop()
-            if (point, dir) in self.cache:
+            if (point, dir) in explored:
                 continue
             yield point
-            self.cache.add((point, dir))
+            explored.add((point, dir))
             if tile := self.tiles.get(point):
                 for p, d in ((point.go(d), d) for d in tile.outs(dir)):
                     if self.in_bounds(p):
@@ -108,7 +108,6 @@ class Board:
                     to_explore.append((p, dir))
 
     def num_energized(self, point: Point, dir: str) -> int:
-        self.cache.clear()
         count = len(set(self.follow(point, dir)))
         return count
 
