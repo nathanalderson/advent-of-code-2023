@@ -143,7 +143,7 @@ def a_star(board: Board, start: Pos, goal: Point):
 
         for next in board.neighbors(current):
             new_cost = cost_so_far[current.point] + board.cost(current, next)
-            if next not in cost_so_far or new_cost < cost_so_far[next]:
+            if next.point not in cost_so_far or new_cost < cost_so_far[next.point]:
                 cost_so_far[next.point] = new_cost
                 priority = new_cost + heuristic(next, goal)
                 frontier.put(PrioritizedItem(priority, next))
@@ -153,29 +153,28 @@ def a_star(board: Board, start: Pos, goal: Point):
 
 
 def reconstruct_path(
-    came_from: dict[Point, Point | None], goal: Point
+    came_from: dict[Point, Point | None],
+    cost_so_far: dict[Point, float],
+    goal: Point,
 ) -> tuple[list[Point], float]:
     current = goal
     path = [current]
-    cost = 0
     while True:
         current = came_from[current]
         if current is not None:
             path.append(current)
-            cost += 1
         else:
             break
     path.reverse()
-    return path, cost
+    return path, cost_so_far[goal]
 
 
 def main():
     input = TEST_INPUT
     board = Board(input)
-    came_from, cost_so_far = a_star(
-        board, Pos(Point(0, 0), "E", -1), Point(board.width - 1, board.height - 1)
-    )
-    path, cost = reconstruct_path(came_from, Point(board.width - 1, board.height - 1))
+    goal = Point(board.width - 1, board.height - 1)
+    came_from, cost_so_far = a_star(board, Pos(Point(0, 0), "E", -1), goal)
+    path, cost = reconstruct_path(came_from, cost_so_far, goal)
     print("Path:", path, "Cost:", cost)
 
 
