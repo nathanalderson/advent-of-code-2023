@@ -1,5 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from queue import PriorityQueue
+from typing import Any
 
 TEST_INPUT = """\
 2413432311323
@@ -16,6 +18,12 @@ TEST_INPUT = """\
 2546548887735
 4322674655533
 """
+
+
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: int
+    item: Any = field(compare=False)
 
 
 def turn(direction: str, turn: str) -> str:
@@ -54,6 +62,43 @@ class Point:
             case "W":
                 return Point(self.x - 1, self.y)
 
+    def __repr__(self) -> str:
+        return f"({self.x}, {self.y})"
+
+
+@dataclass(frozen=True)
+class Pos:
+    point: Point
+    direction: str
+    straight_count: int
+
+    def go(self, direction: str) -> Pos:
+        return Pos(
+            self.point.go(direction),
+            direction,
+            max(0, self.calc_straight_count(direction)),
+        )
+
+    def allowed_directions(self) -> list[str]:
+        allowed = [turn(self.direction, "L"), turn(self.direction, "R")]
+        if self.straight_count < 3:
+            allowed.append(self.direction)
+        return allowed
+
+    def neighbors(self) -> list[Pos]:
+        return [self.go(d) for d in self.allowed_directions()]
+
+    def calc_straight_count(self, going_dir: str) -> int:
+        if self.straight_count == -1:
+            return 0
+        elif self.direction == going_dir:
+            return self.straight_count + 1
+        else:
+            return 0
+
+    def __repr__(self) -> str:
+        return f"<{self.point}, {self.direction}, {self.straight_count}>"
+
 
 class Board:
     def __init__(self, input: str) -> None:
@@ -63,24 +108,75 @@ class Board:
         self.costs = {}
         for y, line in enumerate(input.splitlines()):
             for x, char in enumerate(line):
-                self.costs[Point(x, y)] = int(char)
+                self.costs[(x, y)] = int(char)
         self.width = x + 1
         self.height = y + 1
 
-    def in_bounds(self, loc: Point) -> bool:
-        return 0 <= loc.x < self.width and 0 <= loc.y < self.height
+    def in_bounds(self, loc: Pos) -> bool:
+        return 0 <= loc.point.x < self.width and 0 <= loc.point.y < self.height
 
-    def neighbors(self, loc: Point, direction: str, must_turn: bool) -> list[Point]:
-        allowed = [turn(direction, "L"), turn(direction, "R")]
-        if not must_turn:
-            allowed.append(direction)
-        locs = (loc.go(d) for d in allowed)
-        return [l for l in locs if self.in_bounds(l)]
+    def neighbors(self, loc: Pos) -> list[Pos]:
+        return [l for l in loc.neighbors() if self.in_bounds(l)]
+
+    def cost(self, from_pos: Pos, to_pos: Pos) -> float:
+        return self.costs[(to_pos.point.x, to_pos.point.y)]
+
+
+def heuristic(a: Pos, b: Point) -> float:
+    return abs(a.point.x - b.x) + abs(a.point.y - b.y)
+
+
+def a_star(board: Board, start: Pos, goal: Point):
+    frontier = PriorityQueue()
+    frontier.put(PrioritizedItem(0, start))
+    came_from: dict[Point, Point | None] = {}
+    cost_so_far: dict[Point, float] = {}
+    came_from[start.point] = None
+    cost_so_far[start.point] = 0
+
+    while not frontier.empty():
+        current: Pos = frontier.get().item
+
+        print(current, board.neighbors(current))
+        if current.point == goal:
+            break
+
+        for next in board.neighbors(current):
+            new_cost = cost_so_far[current.point] + board.cost(current, next)
+            if next not in cost_so_far or new_cost < cost_so_far[next]:
+                cost_so_far[next.point] = new_cost
+                priority = new_cost + heuristic(next, goal)
+                frontier.put(PrioritizedItem(priority, next))
+                came_from[next.point] = current.point
+
+    return came_from, cost_so_far
+
+
+def reconstruct_path(
+    came_from: dict[Point, Point | None], goal: Point
+) -> tuple[list[Point], float]:
+    current = goal
+    path = [current]
+    cost = 0
+    while True:
+        current = came_from[current]
+        if current is not None:
+            path.append(current)
+            cost += 1
+        else:
+            break
+    path.reverse()
+    return path, cost
 
 
 def main():
     input = TEST_INPUT
     board = Board(input)
+    came_from, cost_so_far = a_star(
+        board, Pos(Point(0, 0), "E", -1), Point(board.width - 1, board.height - 1)
+    )
+    path, cost = reconstruct_path(came_from, Point(board.width - 1, board.height - 1))
+    print("Path:", path, "Cost:", cost)
 
 
 if __name__ == "__main__":
