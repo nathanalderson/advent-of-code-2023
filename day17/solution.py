@@ -108,18 +108,18 @@ class Board:
         self.costs = {}
         for y, line in enumerate(input.splitlines()):
             for x, char in enumerate(line):
-                self.costs[(x, y)] = int(char)
+                self.costs[Point(x, y)] = int(char)
         self.width = x + 1
         self.height = y + 1
 
-    def in_bounds(self, loc: Pos) -> bool:
-        return 0 <= loc.point.x < self.width and 0 <= loc.point.y < self.height
+    def in_bounds(self, pos: Pos) -> bool:
+        return 0 <= pos.point.x < self.width and 0 <= pos.point.y < self.height
 
-    def neighbors(self, loc: Pos) -> list[Pos]:
-        return [l for l in loc.neighbors() if self.in_bounds(l)]
+    def neighbors(self, pos: Pos) -> list[Pos]:
+        return [l for l in pos.neighbors() if self.in_bounds(l)]
 
     def cost(self, from_pos: Pos, to_pos: Pos) -> float:
-        return self.costs[(to_pos.point.x, to_pos.point.y)]
+        return self.costs[to_pos.point]
 
 
 def heuristic(a: Pos, b: Point) -> float:
