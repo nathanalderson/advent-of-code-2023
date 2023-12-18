@@ -22,7 +22,7 @@ TEST_INPUT = """\
 
 @dataclass(order=True)
 class PrioritizedItem:
-    priority: int
+    priority: float
     item: Any = field(compare=False)
 
 
@@ -44,6 +44,8 @@ def turn(direction: str, turn: str) -> str:
             return "S"
         case ("W", "R"):
             return "N"
+        case _:
+            raise ValueError(f"Unknown direction: {direction}")
 
 
 @dataclass(frozen=True)
@@ -61,6 +63,8 @@ class Point:
                 return Point(self.x + 1, self.y)
             case "W":
                 return Point(self.x - 1, self.y)
+            case _:
+                raise ValueError(f"Unknown direction: {direction}")
 
     def __repr__(self) -> str:
         return f"({self.x}, {self.y})"
@@ -122,38 +126,43 @@ class Board:
         return self.costs[to_pos.point]
 
     def draw(self, path: list[Point]) -> None:
-        path = set(path)
+        path_set = set(path)
         for y in range(self.height):
             for x in range(self.width):
                 p = Point(x, y)
-                if p in path:
+                if p in path_set:
                     print(self.costs[p], end="")
                 else:
                     print(".", end="")
             print()
 
-    def draw_costs(self, costs: dict[Point, float]) -> None:
+    def draw_costs(self, costs: CostDict) -> None:
         for y in range(self.height):
             for x in range(self.width):
                 p = Point(x, y)
-                if p in costs:
-                    print(f"{costs[p]:3}|", end="")
+                cost, _ = costs.get(p, (None, None))
+                if cost:
+                    print(f"{cost:3}|", end="")
                 else:
                     print(" . |", end="")
             print()
 
 
 def heuristic(a: Pos, b: Point) -> float:
-    return abs(a.point.x - b.x) + abs(a.point.y - b.y)
+    # return abs(a.point.x - b.x) + abs(a.point.y - b.y)
+    return 0
+
+
+CostDict = dict[Point, tuple[float, int]]
 
 
 def a_star(board: Board, start: Pos, goal: Point):
     frontier = PriorityQueue()
     frontier.put(PrioritizedItem(0, start))
     came_from: dict[Point, Point | None] = {}
-    cost_so_far: dict[Point, float] = {}
+    cost_so_far: CostDict = {}
     came_from[start.point] = None
-    cost_so_far[start.point] = 0
+    cost_so_far[start.point] = 0, 0
 
     while not frontier.empty():
         current: Pos = frontier.get().item
@@ -163,9 +172,17 @@ def a_star(board: Board, start: Pos, goal: Point):
             break
 
         for next in board.neighbors(current):
-            new_cost = cost_so_far[current.point] + board.cost(current, next)
-            if next.point not in cost_so_far or new_cost < cost_so_far[next.point]:
-                cost_so_far[next.point] = new_cost
+            new_cost, new_straight_count = cost_so_far[current.point]
+            new_cost += board.cost(current, next)
+            next_cost, next_straight_count = cost_so_far.get(
+                next.point, (float("inf"), float("inf"))
+            )
+            if (
+                next.point not in cost_so_far
+                or new_cost < next_cost
+                or (new_cost == next_cost and new_straight_count < next_straight_count)
+            ):
+                cost_so_far[next.point] = new_cost, new_straight_count
                 priority = new_cost + heuristic(next, goal)
                 frontier.put(PrioritizedItem(priority, next))
                 came_from[next.point] = current.point
@@ -175,7 +192,7 @@ def a_star(board: Board, start: Pos, goal: Point):
 
 def reconstruct_path(
     came_from: dict[Point, Point | None],
-    cost_so_far: dict[Point, float],
+    cost_so_far: CostDict,
     goal: Point,
 ) -> tuple[list[Point], float]:
     current = goal
@@ -187,7 +204,7 @@ def reconstruct_path(
         else:
             break
     path.reverse()
-    return path, cost_so_far[goal]
+    return path, cost_so_far[goal][0]
 
 
 def main():
