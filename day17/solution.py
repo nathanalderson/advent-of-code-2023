@@ -90,11 +90,11 @@ class Pos:
 
     def calc_straight_count(self, going_dir: str) -> int:
         if self.straight_count == -1:
-            return 0
+            return 1
         elif self.direction == going_dir:
             return self.straight_count + 1
         else:
-            return 0
+            return 1
 
     def __repr__(self) -> str:
         return f"<{self.point}, {self.direction}, {self.straight_count}>"
@@ -121,6 +121,27 @@ class Board:
     def cost(self, from_pos: Pos, to_pos: Pos) -> float:
         return self.costs[to_pos.point]
 
+    def draw(self, path: list[Point]) -> None:
+        path = set(path)
+        for y in range(self.height):
+            for x in range(self.width):
+                p = Point(x, y)
+                if p in path:
+                    print(self.costs[p], end="")
+                else:
+                    print(".", end="")
+            print()
+
+    def draw_costs(self, costs: dict[Point, float]) -> None:
+        for y in range(self.height):
+            for x in range(self.width):
+                p = Point(x, y)
+                if p in costs:
+                    print(f"{costs[p]:3}|", end="")
+                else:
+                    print(" . |", end="")
+            print()
+
 
 def heuristic(a: Pos, b: Point) -> float:
     return abs(a.point.x - b.x) + abs(a.point.y - b.y)
@@ -137,7 +158,7 @@ def a_star(board: Board, start: Pos, goal: Point):
     while not frontier.empty():
         current: Pos = frontier.get().item
 
-        print(current, board.neighbors(current))
+        # print(current, board.neighbors(current))
         if current.point == goal:
             break
 
@@ -176,6 +197,8 @@ def main():
     came_from, cost_so_far = a_star(board, Pos(Point(0, 0), "E", -1), goal)
     path, cost = reconstruct_path(came_from, cost_so_far, goal)
     print("Path:", path, "Cost:", cost)
+    board.draw(path)
+    board.draw_costs(cost_so_far)
 
 
 if __name__ == "__main__":
