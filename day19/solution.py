@@ -1,3 +1,4 @@
+import dataclasses
 import re
 from dataclasses import dataclass
 from pprint import pprint
@@ -23,7 +24,7 @@ hdj{m>838:A,pv}
 """
 
 
-@dataclass
+@dataclass(frozen=True)
 class Part:
     x: int
     m: int
@@ -32,6 +33,17 @@ class Part:
 
     def score(self):
         return self.x + self.m + self.a + self.s
+
+
+@dataclass(frozen=True)
+class PartRange:
+    x: range
+    m: range
+    a: range
+    s: range
+
+    def score(self):
+        return len(self.x) * len(self.m) * len(self.a) * len(self.s)
 
 
 def parse_part(line: str):
@@ -56,6 +68,11 @@ OPERATORS = {
     "<": lambda a, b: a < b,
 }
 
+RANGE_OPERATORS = {
+    "<": lambda r, val: (range(r.start, val), range(val, r.stop)),
+    ">": lambda r, val: (range(val + 1, r.stop), range(r.start, val + 1)),
+}
+
 
 def accepted(part: Part, workflows: dict[str, Workflow]) -> bool:
     goto = "in"
@@ -76,6 +93,41 @@ def accepted(part: Part, workflows: dict[str, Workflow]) -> bool:
                 goto = step
 
 
+def route_ranges(workflows: dict[str, Workflow]) -> int:
+    to_route: list[tuple[PartRange, str]] = [
+        (
+            PartRange(range(1, 4001), range(1, 4001), range(1, 4001), range(1, 4001)),
+            "in",
+        )
+    ]
+    count = 0
+    while to_route:
+        part_range, goto = to_route.pop()
+        if goto == "A":
+            count += part_range.score()
+            continue
+        if goto == "R":
+            continue
+        workflow = workflows[goto]
+        for step in workflow.steps:
+            if m := re.match(r"([xmas])([><])(\d+):(\w+)", step):
+                category, operator, val, dest = m.groups()
+                op = RANGE_OPERATORS[operator]
+                matching_range, nonmatching_range = op(
+                    getattr(part_range, category), int(val)
+                )
+                if matching_range:
+                    p = dataclasses.replace(part_range, **{category: matching_range})
+                    to_route.append((p, dest))
+                if nonmatching_range:
+                    part_range = dataclasses.replace(
+                        part_range, **{category: nonmatching_range}
+                    )
+            else:
+                to_route.append((part_range, step))
+    return count
+
+
 def main():
     # data = TEST_INPUT
     data = open("input").read()
@@ -86,6 +138,9 @@ def main():
     accepted_parts = [part for part in parts if accepted(part, workflows)]
     ans1 = sum(part.score() for part in accepted_parts)
     print(ans1)
+
+    ans2 = route_ranges(workflows)
+    print(ans2)
 
 
 if __name__ == "__main__":
