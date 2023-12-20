@@ -1,5 +1,6 @@
 from __future__ import annotations
 import itertools
+import math
 import re
 from dataclasses import dataclass
 from typing import Iterable
@@ -28,17 +29,18 @@ class Point:
     x: int
     y: int
 
-    def go(self, direction: str, distance: int) -> list[Point]:
-        if direction == "R":
-            return [Point(x + 1, self.y) for x in range(self.x, self.x + distance)]
-        elif direction == "L":
-            return [Point(x - 1, self.y) for x in range(self.x, self.x - distance, -1)]
-        elif direction == "U":
-            return [Point(self.x, y + 1) for y in range(self.y, self.y + distance)]
-        elif direction == "D":
-            return [Point(self.x, y - 1) for y in range(self.y, self.y - distance, -1)]
-        else:
-            raise ValueError(f"Invalid direction: {direction}")
+    def go(self, direction: str, distance: int) -> Point:
+        match direction:
+            case "R":
+                return Point(self.x + distance, self.y)
+            case "L":
+                return Point(self.x - distance, self.y)
+            case "U":
+                return Point(self.x, self.y + distance)
+            case "D":
+                return Point(self.x, self.y - distance)
+            case _:
+                raise ValueError(f"Invalid direction: {direction}")
 
 
 class Instruction:
@@ -63,7 +65,7 @@ class Instruction:
         else:
             raise ValueError(f"Invalid instruction: {line}")
 
-    def follow(self, p: Point) -> list[Point]:
+    def follow(self, p: Point) -> Point:
         return p.go(self.direction, self.distance)
 
     def __repr__(self):
@@ -74,28 +76,26 @@ class Instruction:
 
 
 def follow(start: Point, instructions: list[Instruction]) -> Iterable[Point]:
-    yield start
     for instruction in instructions:
-        points = instruction.follow(start)
-        yield from points
-        start = points[-1]
+        point = instruction.follow(start)
+        yield point
+        start = point
 
 
-def fill(border: set[Point], start: Point) -> set[Point]:
-    interior = set()
-    queue = [start]
-    while queue:
-        p = queue.pop()
-        if p in border or p in interior:
-            continue
-        interior.add(p)
-        queue.extend(
-            itertools.chain.from_iterable(p.go(direction, 1) for direction in "RULD")
-        )
-    return interior
+# This is, apparently, the trapezoid area formula
+def area(vertices: list[Point]):
+    area = sum(v1.y * v2.x - v1.x * v2.y for v1, v2 in itertools.pairwise(vertices))
+
+    borderLength = sum(
+        abs(v1.x - v2.x) + abs(v1.y - v2.y)
+        for v1, v2 in itertools.pairwise(vertices + [vertices[0]])
+    )
+
+    area = math.ceil((abs(area) + borderLength + 1) / 2)
+    return area
 
 
-def draw(points: set[Point], interior: set[Point]):
+def draw(points: list[Point]):
     min_x = min(p.x for p in points)
     max_x = max(p.x for p in points)
     min_y = min(p.y for p in points)
@@ -106,8 +106,6 @@ def draw(points: set[Point], interior: set[Point]):
             p = Point(x, y)
             if p in points:
                 print("#", end="")
-            elif p in interior:
-                print(".", end="")
             else:
                 print(" ", end="")
         print()
@@ -119,20 +117,17 @@ def main():
 
     # part 1
     instructions = [Instruction(line) for line in data]
-    border = set(follow(Point(0, 0), instructions))
-    # interior_point = Point(1, -1)  # TEST - Found by inspection
-    interior_point = Point(60, 1)  # Found by inspection
-    interior = fill(border, interior_point)
-    print(border)
-    draw(border, interior)
-    print(len(interior) + len(border))
+    vertices = list(follow(Point(0, 0), instructions))
+    # print(vertices)
+    # draw(vertices)
+    ans1 = area(vertices)
+    print(ans1)
 
     # part 2
     instructions2 = [Instruction(line, part2=True) for line in data]
-    border2 = set(follow(Point(0, 0), instructions2))
-    interior_point2 = Point(60, 1)  # ???
-    interior2 = fill(border2, interior_point2)
-    print(len(interior2) + len(border2))
+    vertices2 = list(follow(Point(0, 0), instructions2))
+    ans2 = area(vertices2)
+    print(ans2)
 
 
 if __name__ == "__main__":
