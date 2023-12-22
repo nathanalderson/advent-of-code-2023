@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import defaultdict
 from dataclasses import dataclass, field
 import functools
 from pprint import pprint
@@ -56,22 +57,18 @@ class Brick:
         return min(self.p1.z, self.p2.z)
 
     def max_z(self) -> int:
-        return min(self.p1.z, self.p2.z)
+        return max(self.p1.z, self.p2.z)
 
 
 class Tower:
     def __init__(self, bricks: list[Brick]) -> None:
-        self.bricks = sorted(bricks, key=lambda b: b.min_z())
-        self.length = max(b.p2.x for b in bricks) + 1
-        self.width = max(b.p2.y for b in bricks) + 1
+        self.bricks = sorted(bricks, key=lambda brick: brick.min_z())
 
     def __repr__(self) -> str:
         return f"<Tower: {self.bricks}>"
 
     def settle(self) -> None:
-        highest_by_column: dict[tuple[int, int], int] = {
-            (x, y): 0 for x in range(self.length) for y in range(self.width + 1)
-        }
+        highest_by_column: dict[tuple[int, int], int] = defaultdict(lambda: 0)
         for brick in self.bricks:
             floor = 0
             for column in brick.columns:
@@ -87,8 +84,8 @@ class Tower:
                 if brick is other_brick:
                     continue
                 if (
-                    brick.columns & other_brick.columns
-                    and brick.max_z() + 1 == other_brick.min_z()
+                    brick.max_z() + 1 == other_brick.min_z()
+                    and brick.columns & other_brick.columns
                 ):
                     brick.supports.append(other_brick)
                     other_brick.supported_by.append(brick)
@@ -112,7 +109,6 @@ def main():
     bricks = [parse(line, str(i)) for i, line in enumerate(data)]
     tower = Tower(bricks)
     print("settling...")
-    pprint(tower.bricks)
     tower.settle()
     print("calculating supports...")
     tower.calculate_supports()
@@ -120,7 +116,6 @@ def main():
     can_disintegrate = list(tower.part1())
     print("done.")
     pprint(len(can_disintegrate))
-    # Wrong: 509
 
 
 if __name__ == "__main__":
