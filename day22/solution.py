@@ -129,7 +129,8 @@ def num_fall_if_removed(brick_in: str, tower: Tower) -> int:
     while to_remove:
         brick_to_remove = to_remove.pop(0)
         tower.remove(brick_to_remove)
-        for b in tower.bricks:
+        for b in brick_to_remove.supports:
+            b = tower.bricks_by_label[b]
             if len(b.supported_by) == 0 and b.min_z() != 1 and b not in to_remove:
                 sum += 1
                 to_remove.append(b)
