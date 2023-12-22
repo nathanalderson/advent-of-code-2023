@@ -1,6 +1,6 @@
 from __future__ import annotations
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import functools
 from pprint import pprint
 import string
@@ -32,8 +32,8 @@ class Brick:
     label: str
     p1: Point
     p2: Point
-    supports: list[Brick] = field(default_factory=list)
-    supported_by: list[Brick] = field(default_factory=list)
+    supports: list[str] = field(default_factory=list)
+    supported_by: list[str] = field(default_factory=list)
 
     def __repr__(self) -> str:
         return f"<{self.p1} ~ {self.p2}> {self.label}"
@@ -59,10 +59,22 @@ class Brick:
     def max_z(self) -> int:
         return max(self.p1.z, self.p2.z)
 
+    def copy(self) -> Brick:
+        return Brick(
+            self.label, self.p1, self.p2, self.supports[:], self.supported_by[:]
+        )
+
+    def __hash__(self) -> Point:
+        return self.p1
+
+    def __eq__(self, other: object) -> bool:
+        return type(other) == Brick and self.label == other.label
+
 
 class Tower:
     def __init__(self, bricks: list[Brick]) -> None:
         self.bricks = sorted(bricks, key=lambda brick: brick.min_z())
+        self.bricks_by_label = {brick.label: brick for brick in self.bricks}
 
     def __repr__(self) -> str:
         return f"<Tower: {self.bricks}>"
@@ -77,6 +89,7 @@ class Tower:
             brick.drop_to(floor)
             for column in brick.columns:
                 highest_by_column[column] = brick.max_z()
+        self.bricks.sort(key=lambda brick: brick.min_z())
 
     def calculate_supports(self):
         for brick in self.bricks:
@@ -87,13 +100,40 @@ class Tower:
                     brick.max_z() + 1 == other_brick.min_z()
                     and brick.columns & other_brick.columns
                 ):
-                    brick.supports.append(other_brick)
-                    other_brick.supported_by.append(brick)
+                    brick.supports.append(other_brick.label)
+                    other_brick.supported_by.append(brick.label)
+
+    def remove(self, brick: Brick) -> None:
+        for other_brick_label in brick.supports:
+            other_brick = self.bricks_by_label[other_brick_label]
+            other_brick.supported_by.remove(brick.label)
+        self.bricks.remove(brick)
+        self.bricks_by_label.pop(brick.label)
 
     def part1(self) -> Iterable[Brick]:
         for brick in self.bricks:
-            if all(len(other_brick.supported_by) > 1 for other_brick in brick.supports):
+            if all(
+                len(self.bricks_by_label[other_brick_label].supported_by) > 1
+                for other_brick_label in brick.supports
+            ):
                 yield brick
+
+    def copy(self) -> Tower:
+        return Tower([brick.copy() for brick in self.bricks])
+
+
+def num_fall_if_removed(brick_in: str, tower: Tower) -> int:
+    tower = tower.copy()
+    sum = 0
+    to_remove = [tower.bricks_by_label[brick_in]]
+    while to_remove:
+        brick_to_remove = to_remove.pop(0)
+        tower.remove(brick_to_remove)
+        for b in tower.bricks:
+            if len(b.supported_by) == 0 and b.min_z() != 1 and b not in to_remove:
+                sum += 1
+                to_remove.append(b)
+    return sum
 
 
 def parse(line: str, label: str) -> Brick:
@@ -116,6 +156,9 @@ def main():
     can_disintegrate = list(tower.part1())
     print("done.")
     pprint(len(can_disintegrate))
+
+    ans2 = sum(num_fall_if_removed(brick.label, tower) for brick in tower.bricks)
+    print(ans2)
 
 
 if __name__ == "__main__":
